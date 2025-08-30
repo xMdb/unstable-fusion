@@ -4,11 +4,16 @@ Unstable Fusion is a web application that allows users to generate images from t
 
 ## Deploy
 
-The app is containerized with Docker. You can build and run it with the following commands:
+The app is containerized with Docker. You can build it with the following commands:
 
 ```bash
-docker build -t unstablefusion .
-docker run -p 8000:8000 -e JWT_SECRET
+docker build -t unstable-fusion .
+```
+
+Then use the included `compose.yml` to run the app with:
+
+```bash
+docker compose -d compose.yml up
 ```
 
 ## REST API
@@ -27,16 +32,16 @@ Jobs are stored in the jobs table with status fields. The worker thread polls DB
 
 ### Endpoints
 
-POST /jobs - enqueue image generation: body { "prompt": "...", "model": "supported_model", "width": 256, "height": 256 }
-GET /jobs - list user's jobs with optional status filter and pagination
-GET /jobs/{id} - job status and details
-POST /jobs/{id}/cancel - cancel queued job (best-effort)
-GET /queue - queue snapshot (queued count, processing count, next jobs)
-GET /images - list user's images with pagination and prompt_contains filter
-GET /images/{id} - image details
-DELETE /images/{id} - delete own image file + DB record
-GET /images/{id}/download - download file (own or admin)
-POST /images/{id}/like - like/unlike toggle for current user
+- POST /jobs - enqueue image generation: body { "prompt": "...", "model": "supported_model", "width": 256, "height": 256 }
+- GET /jobs - list user's jobs with optional status filter and pagination
+- GET /jobs/{id} - job status and details
+- POST /jobs/{id}/cancel - cancel queued job (best-effort)
+- GET /queue - queue snapshot (queued count, processing count, next jobs)
+- GET /images - list user's images with pagination and prompt_contains filter
+- GET /images/{id} - image details
+- DELETE /images/{id} - delete own image file + DB record
+- GET /images/{id}/download - download file (own or admin)
+- POST /images/{id}/like - like/unlike toggle for current user
 
 ## Frontend/Web Client
 
