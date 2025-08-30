@@ -1,0 +1,43 @@
+# Unstable Fusion
+
+Unstable Fusion is a web application that allows users to generate images from text prompts using Stable Diffusion models with PyTorch and stuff. It provides a React frontend and a FastAPI backend, all containerized with Docker for easy deployment. The main process is FastAPI, which hosts the static files built by React and handles POST API requests for image generation.
+
+## Deploy
+
+The app is containerized with Docker. You can build and run it with the following commands:
+
+```bash
+docker build -t unstablefusion .
+docker run -p 8000:8000 -e JWT_SECRET
+```
+
+## REST API
+
+The backend exposes a REST API endpoint at `/api/generate` that accepts POST requests with a JSON payload containing the text prompt and other parameters for image generation. The API processes the request, generates the image using the selected Stable Diffusion model, and returns the generated image in the response.
+
+### Persistence & Queue
+
+Jobs are stored in the jobs table with status fields. The worker thread polls DB for queued jobs, marks them processing, and runs the generator. Because the job state is stored in MariaDB, the queue persists and is visible to all users. On startup the app resets any processing jobs back to queued so they can be picked up again. If the app is restarted, processing jobs are moved back to queued on startup so they will be re-executed. Images are saved to IMAGES_DIR (./generated_images by default). You can change via IMAGES_DIR env var.
+
+### Auth
+
+- Login via POST /auth/token with username & password (HTML form) then returns a JWT.
+- Default hardcoded users admin:admin and demo:demo are created on startup (stored in DB so they behave like normal users). Use the token (Authorization: Bearer <token>) for endpoints.
+- admin has is_admin=True and can download any user's image; regular users can download their own.
+
+### Endpoints
+
+POST /jobs - enqueue image generation: body { "prompt": "...", "model": "supported_model", "width": 256, "height": 256 }
+GET /jobs - list user's jobs with optional status filter and pagination
+GET /jobs/{id} - job status and details
+POST /jobs/{id}/cancel - cancel queued job (best-effort)
+GET /queue - queue snapshot (queued count, processing count, next jobs)
+GET /images - list user's images with pagination and prompt_contains filter
+GET /images/{id} - image details
+DELETE /images/{id} - delete own image file + DB record
+GET /images/{id}/download - download file (own or admin)
+POST /images/{id}/like - like/unlike toggle for current user
+
+## Frontend/Web Client
+
+The frontend is statically built with React + Vite and provides a user-friendly interface for interacting with the backend API. It interfaces with all of the REST API endpoints. The frontend is served by FastAPI as static files.
