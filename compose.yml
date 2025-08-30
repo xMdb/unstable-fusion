@@ -1,7 +1,7 @@
 services:
   mariadb:
     image: mariadb
-    container_name: unstable-diffusion-mariadb
+    container_name: unstable-fusion-mariadb
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: my-secret-pw
@@ -21,7 +21,7 @@ services:
 
   app:
     build: .
-    container_name: unstable-diffusion-app
+    container_name: unstable-fusion-app
     restart: always
     environment:
       DATABASE_URL: mysql+pymysql://root:my-secret-pw@mariadb:3306/sd_api
