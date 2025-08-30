@@ -8,16 +8,16 @@ This project was built for CAB432 Cloud Computing at QUT, where I explored the d
 
 ## Deployment
 
-The app is containerized with Docker. You can build it with the following commands:
+The app is containerized with Docker and deployed with Docker Compose as a single stack that includes MariaDB. Just run the following command to start the app:
 
 ```bash
-docker build -t unstable-fusion .
+docker compose compose.yml up
 ```
 
-Then use the included `compose.yml` to run the app with:
+If needed you can manually build it with the following commands:
 
 ```bash
-docker compose -d compose.yml up
+docker build -t unstable-fusion:manual .
 ```
 
 ## REST API
