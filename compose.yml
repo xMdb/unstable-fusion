@@ -1,7 +1,7 @@
 services:
   mariadb:
     image: mariadb
-    container_name: unstablediffusion-mariadb
+    container_name: unstable-diffusion-mariadb
     restart: always
     environment:
       MARIADB_ROOT_PASSWORD: my-secret-pw
@@ -15,13 +15,10 @@ services:
 
   app:
     build: .
-    container_name: unstablediffusion-app
+    container_name: unstable-diffusion-app
     restart: always
-    depends_on:
-      mariadb:
-        condition: service_healthy
     environment:
-      DATABASE_URL: mysql+pymysql://sduser:sdpassword@mariadb:3306/sd_api
+      DATABASE_URL: mysql+pymysql://root:my-secret-pw@mariadb:3306/sd_api
       IMAGES_DIR: /app/generated_images
       JWT_SECRET: your-secure-jwt-secret-key-change-this-in-production
       JWT_ALGORITHM: HS256

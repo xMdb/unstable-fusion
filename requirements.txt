@@ -9,4 +9,4 @@ diffusers
 torch
 transformers
 safetensors
-Pillow
+python-multipart
