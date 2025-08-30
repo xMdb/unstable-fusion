@@ -87,6 +87,9 @@ export default function App() {
   const [promptFilter, setPromptFilter] = useState<string>("");
   const [queue, setQueue] = useState<QueueData | null>(null);
   const [model, setModel] = useState<string>("CompVis/stable-diffusion-v1-4");
+  const [width, setWidth] = useState<number>(256);
+  const [height, setHeight] = useState<number>(256);
+  const [steps, setSteps] = useState<number>(20);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = getCookie('darkMode');
     const initial = saved ? saved === 'true' : false;
@@ -130,7 +133,7 @@ export default function App() {
       const res = await fetch(API_BASE + "jobs", {
         method: "POST",
         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, width: 256, height: 256, model_name: model })
+        body: JSON.stringify({ prompt, width, height, steps, model_name: model })
       });
       const job: Job = await res.json();
       setJobs([job, ...jobs]);
@@ -353,6 +356,43 @@ export default function App() {
                     <SelectItem value="CompVis/stable-diffusion-v1-4">CompVis/stable-diffusion-v1-4</SelectItem>
                   </SelectContent>
                 </Select>
+                
+                {/* Generation Parameters */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Width</label>
+                    <Input 
+                      type="number" 
+                      value={width} 
+                      onChange={e => setWidth(parseInt(e.target.value) || 256)}
+                      min="64"
+                      max="1024"
+                      step="64"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Height</label>
+                    <Input 
+                      type="number" 
+                      value={height} 
+                      onChange={e => setHeight(parseInt(e.target.value) || 256)}
+                      min="64"
+                      max="1024"
+                      step="64"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Steps</label>
+                    <Input 
+                      type="number" 
+                      value={steps} 
+                      onChange={e => setSteps(parseInt(e.target.value) || 20)}
+                      min="1"
+                      max="100"
+                      step="1"
+                    />
+                  </div>
+                </div>
                 <Button 
                   onClick={submitJob} 
                   disabled={!prompt.trim() || isSubmittingJob}

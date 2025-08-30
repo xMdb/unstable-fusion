@@ -85,6 +85,7 @@ class Job(Base):
     prompt = Column(Text, nullable=False)
     height = Column(Integer, nullable=False, default=256)
     width = Column(Integer, nullable=False, default=256)
+    steps = Column(Integer, nullable=False, default=20)
     model_name = Column(String(255), nullable=False, default=DEFAULT_MODEL)
     status = Column(Enum(JobStatus), default=JobStatus.queued)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -187,6 +188,7 @@ class EnqueueRequest(BaseModel):
     prompt: str
     width: Optional[int] = 256
     height: Optional[int] = 256
+    steps: Optional[int] = 20
     model_name: Optional[str] = DEFAULT_MODEL
 
 class JobOut(BaseModel):
@@ -293,7 +295,7 @@ def return_pipeline(model_name: str, pipe):
     q.put(pipe)
 
 # Generation function that uses pipeline checkout
-def generate_with_pipeline(job_prompt: str, width: int, height: int, model_name: str, out_path: str):
+def generate_with_pipeline(job_prompt: str, width: int, height: int, steps: int, model_name: str, out_path: str):
     """
     Checkout pipeline instance from pool, run generation, save to out_path, and return.
     Errors propagate to caller.
@@ -301,7 +303,7 @@ def generate_with_pipeline(job_prompt: str, width: int, height: int, model_name:
     pipe = None
     try:
         pipe = checkout_pipeline(model_name, timeout=30.0)
-        result = pipe(job_prompt, height=height, width=width)
+        result = pipe(job_prompt, height=height, width=width, num_inference_steps=steps)
         img = result.images[0]
         img.save(out_path)
         return out_path
@@ -385,7 +387,7 @@ def worker_loop():
                             raise RuntimeError(f"Model '{model_name_inner}' is not allowed. Allowed: {sorted(list(ALLOWED_MODELS))}")
 
                         # Run generation check out a pipeline instance from the pool
-                        generate_with_pipeline(j2.prompt, j2.width, j2.height, model_name_inner, out_path)
+                        generate_with_pipeline(j2.prompt, j2.width, j2.height, j2.steps, model_name_inner, out_path)
 
                         # Save image record
                         img = ImageModel(user_id=j2.user_id, job_id=j2.id, path=out_path, prompt=j2.prompt)
@@ -496,6 +498,7 @@ def create_job(req: EnqueueRequest, current_user: User = Depends(get_user_from_t
             prompt=req.prompt,
             width=req.width or 256,
             height=req.height or 256,
+            steps=req.steps or 20,
             model_name=model_name,
             status=JobStatus.queued,
         )
