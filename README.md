@@ -1,8 +1,12 @@
 # Unstable Fusion
 
-Unstable Fusion is a web application that allows users to generate images from text prompts using Stable Diffusion models with PyTorch and stuff. It provides a React frontend and a FastAPI backend, all containerized with Docker for easy deployment. The main process is FastAPI, which hosts the static files built by React and handles POST API requests for image generation.
+Unstable Fusion is a relatively simple API that allows users to generate images from text prompts using a variety of pre-selected Stable Diffusion models. It uses FastAPI for the API and is RESTful. It also includes a web client built with React for easy interaction with the API.
 
-## Deploy
+## Context
+
+This project was built for CAB432 Cloud Computing at QUT, where I explored the deployment of EC2 instances with heavy CPU load. The goal was to use older models that could run on CPU-only instances, as GPU instances were not feasible within the project constraints.
+
+## Deployment
 
 The app is containerized with Docker. You can build it with the following commands:
 
@@ -39,4 +43,4 @@ Jobs are stored in the jobs table with status fields. The worker thread polls DB
 
 ## Frontend/Web Client
 
-The frontend is statically built with React + Vite and provides a user-friendly interface for interacting with the backend API. It interfaces with all of the REST API endpoints. The frontend is served by FastAPI as static files.
+The frontend is statically built with TypeScript + React + Vite and provides a user-friendly interface for interacting with the backend API. It interfaces with all of the REST API endpoints. The frontend is served by FastAPI as static files built during the Docker build.
