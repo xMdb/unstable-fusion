@@ -22,26 +22,20 @@ The backend exposes a REST API endpoint at `/api/generate` that accepts POST req
 
 ### Persistence & Queue
 
-Jobs are stored in the jobs table with status fields. The worker thread polls DB for queued jobs, marks them processing, and runs the generator. Because the job state is stored in MariaDB, the queue persists and is visible to all users. On startup the app resets any processing jobs back to queued so they can be picked up again. If the app is restarted, processing jobs are moved back to queued on startup so they will be re-executed. Images are saved to IMAGES_DIR (./generated_images by default). You can change via IMAGES_DIR env var.
-
-### Auth
-
-- Login via POST /auth/token with username & password (HTML form) then returns a JWT.
-- Default hardcoded users admin:admin and demo:demo are created on startup (stored in DB so they behave like normal users). Use the token (Authorization: Bearer <token>) for endpoints.
-- admin has is_admin=True and can download any user's image; regular users can download their own.
+Jobs are stored in the jobs table with status fields. The worker thread polls DB for queued jobs, marks them processing, and runs the generator. On startup the app resets any processing jobs back to queued so they can be picked up again. If the app is restarted, processing jobs are moved back to queued on startup so they will be re-executed.
 
 ### Endpoints
 
-- POST /jobs - enqueue image generation: body { "prompt": "...", "model": "supported_model", "width": 256, "height": 256 }
-- GET /jobs - list user's jobs with optional status filter and pagination
-- GET /jobs/{id} - job status and details
-- POST /jobs/{id}/cancel - cancel queued job (best-effort)
-- GET /queue - queue snapshot (queued count, processing count, next jobs)
-- GET /images - list user's images with pagination and prompt_contains filter
-- GET /images/{id} - image details
-- DELETE /images/{id} - delete own image file + DB record
-- GET /images/{id}/download - download file (own or admin)
-- POST /images/{id}/like - like/unlike toggle for current user
+- `POST /jobs` - enqueue image generation: body { "prompt": "...", "model": "supported_model", "width": 256, "height": 256 }
+- `GET /jobs` - list user's jobs with optional status filter and pagination
+- `GET /jobs/{id}` - job status and details
+- `POST /jobs/{id}/cancel` - cancel queued job (best-effort)
+- `GET /queue` - queue snapshot (queued count, processing count, next jobs)
+- `GET /images` - list user's images with pagination and prompt_contains filter
+- `GET /images/{id}` - image details
+- `DELETE /images/{id}` - delete own image file + DB record
+- `GET /images/{id}/download` - download file (own or admin)
+- `POST /images/{id}/like` - like/unlike toggle for current user
 
 ## Frontend/Web Client
 
