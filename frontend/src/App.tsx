@@ -1,3 +1,18 @@
+// GENERATIVE AI DISCLAIMER
+//
+// A portion of this code was generated with the assistance of generative AI. Any files that do not contain a disclaimer were either written by a human without AI assistance or generated with developer tooling such as Vite.
+//
+// Models used:
+// GPT-5 by OpenAI (August 2025 version)
+// Used for the first draft.
+// 
+// Claude Sonnet 4 by Anthropic (August 2025 version)
+// Used in Agent and Ask mode to adapt the first draft into what you see here, including adding features like dark mode, image liking, and pagination.
+//
+// GPT-4.1 Copilot by OpenAI (August 2025 VS Code version)
+// Used in the IDE to suggest code completions.
+//
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

@@ -1,3 +1,28 @@
+# GENERATIVE AI DISCLAIMER
+#
+# A portion of this code was generated with the assistance of generative AI. Any files that do not contain a disclaimer were either written by a human without AI assistance or generated with developer tooling such as Vite.
+#
+# Models used:
+# GPT-5 by OpenAI (August 2025 version)
+# Used for the first draft and overall structure of this Python app and RESTful API.
+# 
+# Claude Sonnet 4 by Anthropic (August 2025 version)
+# Used in Agent and Ask mode to fix bugs and add width/height/steps parameters to the API.
+#
+# GPT-4.1 Copilot by OpenAI (August 2025 VS Code version)
+# Used in the IDE to suggest code completions.
+#
+# REFERENCES
+# 
+# This code was adapted from the following articles:
+# https://medium.com/@nttp/text-to-image-on-cpu-only-hardware-bd98f291dead
+# https://medium.com/latinxinai/text-to-image-with-stable-diffusion-4df16da2cfd5
+#
+# The following models are downloaded and used by this Python app:
+# https://huggingface.co/stabilityai/sd-turbo
+# https://huggingface.co/CompVis/stable-diffusion-v1-4
+# https://huggingface.co/Stable-Diffusion-v1-5/stable-diffusion-v1-5
+
 # ---------------------------
 # Imports
 # ---------------------------
@@ -117,7 +142,7 @@ class Like(Base):
 Base.metadata.create_all(bind=engine)
 
 # ---------------------------
-# Auth stuff with hardcoded users
+# JWT auth with hardcoded users
 # ---------------------------
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 HARDCODED_USERS = {
@@ -241,10 +266,10 @@ def create_pipeline_instance(model_name: str):
     Create a new StableDiffusionPipeline instance for the given model_name.
     If loading fails, raises Exception to be caught by caller.
     """
-    # model_name may need authentication or different hf repo; we try to load exactly what the user provided.
-    # If this fails in your environment, change the string to the correct HF repo or add HF token.
+    # safety_checker disabled due to too many false positives
+    # it probably should be enabled in a production system to prevent "harmful content"
+    # this will also show a warning on model load
     pipe = StableDiffusionPipeline.from_pretrained(model_name, torch_dtype=torch.float32, safety_checker=None)
-    # CPU by default (update to .to("cuda") if you have GPU and compatible torch)
     pipe = pipe.to("cpu")
     pipe.enable_attention_slicing()
     return pipe
@@ -294,7 +319,6 @@ def return_pipeline(model_name: str, pipe):
         return
     q.put(pipe)
 
-# Generation function that uses pipeline checkout
 def generate_with_pipeline(job_prompt: str, width: int, height: int, steps: int, model_name: str, out_path: str):
     """
     Checkout pipeline instance from pool, run generation, save to out_path, and return.
@@ -419,9 +443,9 @@ def worker_loop():
             time.sleep(1.0)
 
 # ---------------------------
-# FastAPI main app (holy bananas that is a lot of threading stuff)
+# FastAPI main app (holy bananas that was a lot of threading stuff)
 # ---------------------------
-app = FastAPI(title="SD REST API (robust worker & model pools)")
+app = FastAPI(title="Unstable Fusion REST API")
 
 app.add_middleware(
     CORSMiddleware,

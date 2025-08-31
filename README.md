@@ -44,3 +44,18 @@ Jobs are stored in the jobs table with status fields. The worker thread polls DB
 ## Frontend/Web Client
 
 The frontend is statically built with TypeScript + React + Vite and provides a user-friendly interface for interacting with the backend API. It interfaces with all of the REST API endpoints. The frontend is served by FastAPI as static files built during the Docker build.
+
+## Generative AI Disclaimer
+
+A portion of the code in this project was generated with the assistance of generative AI. Any files that do not contain a disclaimer were either written by a human without AI assistance or generated with developer tooling such as Vite.
+
+## References
+
+This code was adapted from the following articles:
+- https://medium.com/@nttp/text-to-image-on-cpu-only-hardware-bd98f291dead
+- https://medium.com/latinxinai/text-to-image-with-stable-diffusion-4df16da2cfd5
+
+The following models are downloaded and used by the Python app:
+- https://huggingface.co/stabilityai/sd-turbo
+- https://huggingface.co/CompVis/stable-diffusion-v1-4
+- https://huggingface.co/Stable-Diffusion-v1-5/stable-diffusion-v1-5
