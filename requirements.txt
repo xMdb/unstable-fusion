@@ -1,11 +1,23 @@
 fastapi
 uvicorn[standard]
 sqlalchemy
-pymysql
+psycopg2-binary
 passlib[bcrypt]
-pyjwt
+bcrypt>=4.2.0
+pydantic[email]
+pyjwt[crypto]
+python-jose[cryptography]
 diffusers
 torch --index-url https://download.pytorch.org/whl/cpu
 transformers
 safetensors
 python-multipart
+python-dotenv
+boto3
+botocore
+requests
+redis
+psutil
+asyncio
+websockets
+sse-starlette

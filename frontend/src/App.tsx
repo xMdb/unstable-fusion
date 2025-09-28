@@ -24,6 +24,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Heart, Moon, Sun, Download, X, Calendar, Eye } from "lucide-react";
+import { LoginForm, UserProfile } from "@/components/AuthComponents";
+import { cognitoAuth } from "@/lib/cognito-auth";
 
 const API_BASE = "/"; // same domain
 
@@ -40,15 +42,17 @@ const setCookie = (name: string, value: string, days: number = 30): void => {
   document.cookie = `${name}=${value}; expires=${expires}; path=/`;
 };
 
-// Helper to create authenticated image URL
-const getAuthenticatedImageUrl = (imageId: string, token: string): string => {
-  return `${API_BASE}images/${imageId}/download?token=${encodeURIComponent(token)}`;
+// Helper to create authenticated image URL with Cognito tokens
+const getAuthenticatedImageUrl = (imageId: string): string => {
+  return `${API_BASE}images/${imageId}/display`;
 };
 
-// Helper to download image with authentication
-const downloadImage = async (imageId: string, token: string): Promise<void> => {
+// Helper to download image with Cognito authentication
+const downloadImage = async (imageId: string): Promise<void> => {
   try {
-    const url = `${API_BASE}images/${imageId}/download?token=${encodeURIComponent(token)}`;
+    const response = await cognitoAuth.authenticatedFetch(`${API_BASE}images/${imageId}/download`);
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `image-${imageId}.jpg`;
@@ -56,6 +60,7 @@ const downloadImage = async (imageId: string, token: string): Promise<void> => {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Failed to download image:', error);
   }
@@ -90,9 +95,8 @@ interface QueueData {
 }
 
 export default function App() {
-  const [token, setToken] = useState<string | null>(null);
-  const [username, setUsername] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(cognitoAuth.isAuthenticated());
+
   const [prompt, setPrompt] = useState<string>("");
   const [jobs, setJobs] = useState<Job[]>([]);
   const [images, setImages] = useState<Image[]>([]);
@@ -121,6 +125,32 @@ export default function App() {
     queue: false
   });
 
+  // Check authentication on page load
+  useEffect(() => {
+    const checkAuth = async () => {
+      // Always check server authentication first 
+      const serverAuth = await cognitoAuth.checkServerAuth();
+      if (serverAuth) {
+        setIsAuthenticated(true);
+        refreshJobs();
+        refreshImages(0, promptFilter);
+        refreshQueue();
+        return;
+      }
+      
+      // Fallback to local storage authentication
+      if (cognitoAuth.isAuthenticated()) {
+        setIsAuthenticated(true);
+        return;
+      }
+      
+      // No authentication found
+      setIsAuthenticated(false);
+    };
+    
+    checkAuth();
+  }, []);
+
   // Toggle dark mode
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
@@ -129,134 +159,142 @@ export default function App() {
     document.documentElement.classList.toggle('dark', newMode);
   };
 
-  async function login(): Promise<void> {
-    const body = new URLSearchParams({ username, password });
-    const res = await fetch(API_BASE + "auth/token", {
-      method: "POST",
-      body,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
-    const data = await res.json();
-    setToken(data.access_token);
-  }
 
-  async function submitJob(): Promise<void> {
-    if (!token || !prompt.trim()) return;
+
+    async function submitJob(): Promise<void> {
+    if (!isAuthenticated || !prompt.trim()) return;
     
     setIsSubmittingJob(true);
     try {
-      const res = await fetch(API_BASE + "jobs", {
+      await cognitoAuth.authenticatedFetch(API_BASE + "jobs", {
         method: "POST",
-        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, width, height, steps, model_name: model })
+        body: JSON.stringify({ prompt, model_name: model, width, height, steps }),
       });
-      const job: Job = await res.json();
-      setJobs([job, ...jobs]);
       setPrompt("");
-      
-      // Start polling jobs after submitting
-      setActivePolling(prev => ({ ...prev, jobs: true }));
+      refreshJobs();
+      setActivePolling((prev: any) => ({ ...prev, jobs: true }));
+    } catch (error) {
+      console.error("Error submitting job:", error);
     } finally {
       setIsSubmittingJob(false);
     }
   }
 
   async function refreshJobs(): Promise<void> {
-    if (!token) return;
+    if (!isAuthenticated) return;
     
-    const res = await fetch(API_BASE + "jobs", { headers: { Authorization: `Bearer ${token}` } });
-    const data: Job[] = await res.json();
-    setJobs(data);
-    
-    // Stop polling if no jobs are processing or queued
-    const hasActiveJobs = data.some(job => job.status === 'queued' || job.status === 'processing');
-    if (!hasActiveJobs) {
-      setActivePolling(prev => ({ ...prev, jobs: false }));
+    try {
+      const response = await cognitoAuth.authenticatedFetch(API_BASE + "jobs");
+      const data: Job[] = await response.json();
+      setJobs(data);
+      
+      // Stop polling if no jobs are processing or queued
+      const hasActiveJobs = data.some(job => job.status === 'queued' || job.status === 'processing');
+      if (!hasActiveJobs) {
+        setActivePolling((prev: any) => ({ ...prev, jobs: false }));
+      }
+    } catch (error) {
+      console.error('Error refreshing jobs:', error);
     }
   }
 
   async function refreshImages(page: number = 0, filter: string = "", append: boolean = false): Promise<void> {
-    if (!token) return;
+    if (!isAuthenticated) return;
     
-    const skip = page * imagesLimit;
-    const params = new URLSearchParams({
-      skip: skip.toString(),
-      limit: imagesLimit.toString(),
-    });
-    
-    if (filter.trim()) {
-      params.append('prompt_contains', filter.trim());
+    try {
+      const skip = page * imagesLimit;
+      const params = new URLSearchParams({
+        skip: skip.toString(),
+        limit: imagesLimit.toString(),
+      });
+      
+      if (filter.trim()) {
+        params.append('prompt_contains', filter.trim());
+      }
+      
+      const response = await cognitoAuth.authenticatedFetch(`${API_BASE}images?${params}`);
+      const data: Image[] = await response.json();
+      
+      if (append) {
+        setImages((prev: Image[]) => [...prev, ...data]);
+      } else {
+        setImages(data);
+      }
+      
+      // Check if there are more images
+      setHasMoreImages(data.length === imagesLimit);
+    } catch (error) {
+      console.error('Error refreshing images:', error);
     }
-    
-    const res = await fetch(`${API_BASE}images?${params}`, { 
-      headers: { Authorization: `Bearer ${token}` } 
-    });
-    const data: Image[] = await res.json();
-    
-    if (append) {
-      setImages(prev => [...prev, ...data]);
-    } else {
-      setImages(data);
-    }
-    
-    // Check if there are more images
-    setHasMoreImages(data.length === imagesLimit);
   }
 
   async function refreshQueue(): Promise<void> {
-    if (!token) return;
+    if (!isAuthenticated) return;
     
-    const res = await fetch(API_BASE + "queue", { headers: { Authorization: `Bearer ${token}` } });
-    const data: QueueData = await res.json();
-    setQueue(data);
+    try {
+      const response = await cognitoAuth.authenticatedFetch(API_BASE + "queue");
+      const data: QueueData = await response.json();
+      setQueue(data);
+    } catch (error) {
+      console.error('Error refreshing queue:', error);
+    }
   }
 
   async function cancelJob(jobId: string): Promise<void> {
-    if (!token) return;
+    if (!isAuthenticated) return;
     
-    await fetch(API_BASE + `jobs/${jobId}/cancel`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    refreshJobs();
+    try {
+      await cognitoAuth.authenticatedFetch(API_BASE + `jobs/${jobId}/cancel`, {
+        method: "POST"
+      });
+      refreshJobs();
+    } catch (error) {
+      console.error('Error canceling job:', error);
+    }
   }
 
   async function deleteImage(imageId: string): Promise<void> {
-    if (!token) return;
+    if (!isAuthenticated) return;
     
-    const res = await fetch(API_BASE + `images/${imageId}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    
-    if (res.ok) {
-      setImages(images.filter(img => img.id !== imageId));
+    try {
+      const response = await cognitoAuth.authenticatedFetch(API_BASE + `images/${imageId}`, {
+        method: "DELETE"
+      });
+      
+      if (response.ok) {
+        setImages((images: Image[]) => images.filter((img: Image) => img.id !== imageId));
+      }
+    } catch (error) {
+      console.error('Error deleting image:', error);
     }
   }
 
   async function toggleLike(imageId: string): Promise<void> {
-    if (!token) return;
+    if (!isAuthenticated) return;
     
-    const res = await fetch(API_BASE + `images/${imageId}/like`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    
-    if (res.ok) {
-      const result = await res.json();
-      setImages(images.map(img => 
-        img.id === imageId 
-          ? { ...img, likes_count: result.likes_count, liked_by_user: result.liked }
-          : img
-      ));
+    try {
+      const response = await cognitoAuth.authenticatedFetch(API_BASE + `images/${imageId}/like`, {
+        method: "POST"
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        setImages((images: Image[]) => images.map((img: Image) => 
+          img.id === imageId 
+            ? { ...img, likes_count: result.likes_count, liked_by_user: result.liked }
+            : img
+        ));
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
     }
   }
 
   // Polling effect - only poll when needed
   useEffect(() => {
-    if (!token) return;
+    if (!isAuthenticated) return;
     
-    const intervals: NodeJS.Timeout[] = [];
+    const intervals: any[] = [];
     
     if (activePolling.jobs) {
       intervals.push(setInterval(refreshJobs, 5000));
@@ -269,16 +307,16 @@ export default function App() {
     }
     
     return () => intervals.forEach(clearInterval);
-  }, [token, activePolling]);
+  }, [isAuthenticated, activePolling, promptFilter]);
 
   // Initial data fetch
   useEffect(() => {
-    if (token) {
+    if (isAuthenticated) {
       refreshJobs();
       refreshImages(0, promptFilter);
       refreshQueue();
     }
-  }, [token]);
+  }, [isAuthenticated, promptFilter]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString() + ' ' + new Date(dateString).toLocaleTimeString();
@@ -294,34 +332,34 @@ export default function App() {
     }
   };
 
-  if (!token) {
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    // Refresh data after login
+    refreshJobs();
+    refreshImages(0, promptFilter);
+    refreshQueue();
+  };
+
+  const handleLogout = async () => {
+    try {
+      await cognitoAuth.signOut();
+      setIsAuthenticated(false);
+      // Clear all data
+      setJobs([]);
+      setImages([]);
+      setQueue({ total: 0, processing: 0, queued: 0 });
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  };
+
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="p-6 w-96">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold text-center">Welcome Back</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Input 
-              placeholder="Username" 
-              value={username} 
-              onChange={e => setUsername(e.target.value)} 
-            />
-            <Input 
-              type="password" 
-              placeholder="Password" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              onKeyDown={e => e.key === 'Enter' && login()}
-            />
-            <Button onClick={login} className="w-full">Sign In</Button>
-          </CardContent>
-        </Card>
+        <LoginForm onLoginSuccess={handleLoginSuccess} />
       </div>
     );
-  }
-
-  return (
+  }  return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="border-b bg-card">
@@ -333,7 +371,8 @@ export default function App() {
               <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} />
               <Moon className="h-4 w-4" />
             </div>
-            <Button variant="outline" onClick={() => setToken(null)}>
+            <UserProfile onSignOut={handleLogout} />
+            <Button variant="outline" onClick={handleLogout}>
               Sign Out
             </Button>
           </div>
@@ -358,8 +397,8 @@ export default function App() {
                 <Input 
                   placeholder="Enter your prompt..." 
                   value={prompt} 
-                  onChange={e => setPrompt(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !isSubmittingJob && submitJob()}
+                  onChange={(e: any) => setPrompt(e.target.value)}
+                  onKeyDown={(e: any) => e.key === 'Enter' && !isSubmittingJob && submitJob()}
                 />
                 <Select value={model} onValueChange={setModel}>
                   <SelectTrigger>
@@ -379,7 +418,7 @@ export default function App() {
                     <Input 
                       type="number" 
                       value={width} 
-                      onChange={e => setWidth(parseInt(e.target.value) || 256)}
+                      onChange={(e: any) => setWidth(parseInt(e.target.value) || 256)}
                       min="64"
                       max="1024"
                       step="64"
@@ -390,7 +429,7 @@ export default function App() {
                     <Input 
                       type="number" 
                       value={height} 
-                      onChange={e => setHeight(parseInt(e.target.value) || 256)}
+                      onChange={(e: any) => setHeight(parseInt(e.target.value) || 256)}
                       min="64"
                       max="1024"
                       step="64"
@@ -401,7 +440,7 @@ export default function App() {
                     <Input 
                       type="number" 
                       value={steps} 
-                      onChange={e => setSteps(parseInt(e.target.value) || 20)}
+                      onChange={(e: any) => setSteps(parseInt(e.target.value) || 20)}
                       min="1"
                       max="100"
                       step="1"
@@ -462,7 +501,7 @@ export default function App() {
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => downloadImage(job.id, token!)}
+                              onClick={() => downloadImage(job.id)}
                             >
                               <Download className="h-4 w-4 mr-1" />
                               Download
@@ -494,8 +533,8 @@ export default function App() {
                 <Input
                   placeholder="Filter by prompt..."
                   value={promptFilter}
-                  onChange={e => setPromptFilter(e.target.value)}
-                  onKeyDown={e => {
+                  onChange={(e: any) => setPromptFilter(e.target.value)}
+                  onKeyDown={(e: any) => {
                     if (e.key === 'Enter') {
                       setImagesPage(0);
                       refreshImages(0, promptFilter);
@@ -527,7 +566,7 @@ export default function App() {
                   <Card key={img.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                     <div className="aspect-square relative group">
                       <img 
-                        src={getAuthenticatedImageUrl(img.id, token!)}
+                        src={getAuthenticatedImageUrl(img.id)}
                         alt={img.prompt} 
                         className="w-full h-full object-cover"
                         loading="lazy"
@@ -536,7 +575,7 @@ export default function App() {
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => downloadImage(img.id, token!)}
+                          onClick={() => downloadImage(img.id)}
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           View Full
@@ -562,7 +601,7 @@ export default function App() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => downloadImage(img.id, token!)}
+                            onClick={() => downloadImage(img.id)}
                           >
                             <Download className="h-4 w-4" />
                           </Button>

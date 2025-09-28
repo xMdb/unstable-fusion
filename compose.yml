@@ -1,43 +1,38 @@
-services:
-  mariadb:
-    image: mariadb
-    container_name: unstable-fusion-mariadb
-    restart: always
-    environment:
-      MARIADB_ROOT_PASSWORD: my-secret-pw
-      MARIADB_DATABASE: sd_api
-      MARIADB_USER: sduser
-      MARIADB_PASSWORD: sdpassword
-    ports:
-      - '3306:3306'
-    volumes:
-      - mariadb_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-      start_period: 10s
-      interval: 10s
-      timeout: 5s
-      retries: 3
+# services:
+#   postgres:
+#     image: postgres:16
+#     container_name: unstable-fusion-postgres
+#     restart: always
+#     environment:
+#       POSTGRES_PASSWORD: my-secret-pw
+#       POSTGRES_DB: sd_api
+#       POSTGRES_USER: sduser
+#     ports:
+#       - '5432:5432'
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U sduser -d sd_api"]
+#       start_period: 10s
+#       interval: 10s
+#       timeout: 5s
+#       retries: 3
 
   app:
+    # image: 901444280953.dkr.ecr.ap-southeast-2.amazonaws.com/n11974796-unstable-fusion:latest
     build: .
     container_name: unstable-fusion-app
     restart: always
-    environment:
-      DATABASE_URL: mysql+pymysql://root:my-secret-pw@mariadb:3306/sd_api
-      IMAGES_DIR: /app/generated_images
-      JWT_SECRET: your-secure-jwt-secret-key-change-this-in-production
-      JWT_ALGORITHM: HS256
-      JWT_EXP_SECONDS: 21600
-      MAX_CONCURRENT: 2
+    env_file:
+      - .env
     ports:
       - '3001:3001'
     volumes:
       - images_data:/app/generated_images
     depends_on:
-      mariadb:
+      postgres:
         condition: service_healthy
 
 volumes:
-  mariadb_data:
+  postgres_data:
   images_data:

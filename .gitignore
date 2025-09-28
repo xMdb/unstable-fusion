@@ -1,6 +1,29 @@
+# Environment files
+.env
+.env.local
+.env.production
+.env.staging
+
+# Terraform
+.terraform
+.terraform.lock.hcl
+crash.log
+terraform.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfstate.*backup
+.terraform.lock.hcl
+
 # Python app
 generated_images
-A1_response_to_criteria.md
+*_response_to_criteria.md
 __pycache__
 .venv
 

@@ -1,5 +1,22 @@
+# Terraform
+.terraform
+.terraform.lock.hcl
+crash.log
+terraform.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+
 # Python app
 generated_images
+*_response_to_criteria.md
 __pycache__
 .venv
 
